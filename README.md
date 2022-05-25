@@ -36,3 +36,78 @@ Kotlin:
     }
   }
 ```
+
+```kotlin
+@HiltViewModel
+class FirstBootSectionDetailsViewModel
+@Inject
+constructor(
+    private val getSectionInfo: GetSectionInfoUseCase,
+    private val popBack: PopDetailsBackUseCase,
+    private val navigateToAuth: NavigateToAuthUseCase
+) : ViewModel() {
+    private val _sectionsListViewState: MutableState<SectionDetailsViewState> = mutableStateOf(
+        SectionDetailsViewState.Loading)
+    val sectionsListViewState: State<SectionDetailsViewState>
+        get() = _sectionsListViewState
+
+    fun fetchSectionInfo(id: Int){
+        viewModelScope.launch {
+            _sectionsListViewState.value = SectionDetailsViewState.Loading
+
+            try{
+                getSectionInfo(id).let {
+                    _sectionsListViewState.value = SectionDetailsViewState.PresentInfo.Unauthorized(
+                        title = it.sectionName,
+                        description = it.description,
+                        price = it.price,
+                        onAuthClick = navigateToAuth::invoke
+                    )
+                }
+            } catch (ex: Exception) {
+                _sectionsListViewState.value = SectionDetailsViewState.Error(
+                    message = ex.message ?: "Неописанная ошибка: ${ex::class.java.simpleName}"
+                )
+            }
+        }
+    }
+
+    fun backClicked() = popBack()
+}
+```
+
+```kotlin
+class GetSectionInfoUseCase
+@Inject
+constructor(
+    private val sectionsRepository: ISectionsRepository
+) {
+    suspend operator fun invoke(id: Int): SectionDetailsResponse {
+        return sectionsRepository.getSectionInfo(id)
+    }
+}
+```
+
+```kotlin
+class PopDetailsBackUseCase
+@Inject
+constructor(
+    private val firstBootNavProvider: FirstBootNavProvider
+) {
+    operator fun invoke() {
+        firstBootNavProvider.navigateTo(FirstBootDestinations.PopBack)
+    }
+}
+```
+
+```kotlin
+class NavigateToAuthUseCase
+@Inject
+constructor(
+    private val coreNavProvider: CoreNavProvider
+) {
+    operator fun invoke() {
+        coreNavProvider.navigateTo(CoreDestinations.Authorization)
+    }
+}
+```
